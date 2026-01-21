@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aries Game System</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #000;
+            border: 2px solid #333;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+        }
+        
+        .panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            min-width: 200px;
+        }
+        
+        .panel h3 {
+            margin: 0 0 10px 0;
+            color: #00ff00;
+        }
+        
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        input {
+            background: #222;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px;
+            margin: 2px;
+            border-radius: 3px;
+        }
+        
+        #chatPanel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            height: 200px;
+        }
+        
+        #chatMessages {
+            height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #555;
+            padding: 5px;
+            font-size: 12px;
+        }
+        
+        #chatInput {
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        .status {
+            color: #00ff00;
+        }
+        
+        .error {
+            color: #ff0000;
+        }
+        
+        .info {
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div class="panel">
+                <h3>玩家身份</h3>
+                <div>DID: <span id="playerDID">未创建</span></div>
+                <div>状态: <span id="connectionStatus" class="error">未连接</span></div>
+                <button id="createDIDBtn">创建身份</button>
+                <button id="connectBtn">连接游戏</button>
+            </div>
+            
+            <div class="panel">
+                <h3>钱包</h3>
+                <div>凭证数量: <span id="credentialCount">0</span></div>
+                <button id="viewWalletBtn">查看钱包</button>
+            </div>
+            
+            <div class="panel">
+                <h3>游戏控制</h3>
+                <div>位置: (<span id="playerX">0</span>, <span id="playerY">0</span>)</div>
+                <div>使用 WASD 键移动</div>
+                <button onclick="window.open('/admin/script-editor', '_blank')">剧本编辑器</button>
+            </div>
+        </div>
+        
+        <div id="chatPanel" class="panel">
+            <h3>DIDComm 消息</h3>
+            <div id="chatMessages"></div>
+            <input type="text" id="chatInput" placeholder="输入消息..." />
+        </div>
+    </div>
+
+    <!-- 模态对话框 -->
+    <div id="walletModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 1px solid #555; border-radius: 10px; padding: 20px; min-width: 400px;">
+            <h3>我的钱包</h3>
+            <div id="walletContent"></div>
+            <button onclick="document.getElementById('walletModal').style.display='none'">关闭</button>
+        </div>
+    </div>
+
+    <script src="src/engine/gameEngine.js"></script>
+    <script src="src/network/websocket.js"></script>
+    <script src="src/wallet/wallet.js"></script>
+    <script src="src/ui/ui.js"></script>
+    <script>
+        // 初始化游戏
+        document.addEventListener('DOMContentLoaded', function() {
+            const game = new GameEngine('gameCanvas');
+            const network = new GameNetwork();
+            const wallet = new PlayerWallet();
+            const ui = new GameUI(game, network, wallet);
+            
+            // 启动游戏循环
+            game.start();
+        });
+    </script>
+</body>
+</html>
