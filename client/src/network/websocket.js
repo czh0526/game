@@ -333,14 +333,36 @@ class GameNetwork {
     addChatMessage(message, type = 'info') {
         const chatMessages = document.getElementById('chatMessages');
         if (!chatMessages) return;
-        
+
         const messageElement = document.createElement('div');
-        messageElement.className = type;
-        messageElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        
+        messageElement.className = `chat-message ${type}`;
+
+        const timestamp = new Date().toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        if (type === 'chat' && message.includes(': ')) {
+            // 解析聊天消息: "nickname: message"
+            const [nickname, ...msgParts] = message.split(': ');
+            const chatMessage = msgParts.join(': ');
+
+            messageElement.innerHTML = `
+                <span class="nickname">${nickname}</span>
+                <span class="message">${chatMessage}</span>
+                <span class="timestamp">${timestamp}</span>
+            `;
+        } else {
+            messageElement.innerHTML = `
+                <span class="message">${message}</span>
+                <span class="timestamp">${timestamp}</span>
+            `;
+        }
+
         chatMessages.appendChild(messageElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
-        
+
         // 限制消息数量
         while (chatMessages.children.length > 100) {
             chatMessages.removeChild(chatMessages.firstChild);

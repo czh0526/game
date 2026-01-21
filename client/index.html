@@ -31,6 +31,35 @@
             top: 10px;
             left: 10px;
             z-index: 100;
+            display: none; /* 隐藏容器,面板独立定位 */
+        }
+
+        #rightPanel {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        #identityPanel {
+            top: 10px;
+            left: 10px;
+            width: 250px;
+        }
+
+        #walletPanel {
+            top: 200px;
+            left: 10px;
+            width: 250px;
+        }
+
+        #controlPanel {
+            top: 390px;
+            left: 10px;
+            width: 250px;
         }
         
         .panel {
@@ -38,13 +67,51 @@
             border: 1px solid #555;
             border-radius: 5px;
             padding: 10px;
-            margin-bottom: 10px;
             min-width: 200px;
+            position: absolute;
+            user-select: none;
         }
-        
+
         .panel h3 {
             margin: 0 0 10px 0;
             color: #00ff00;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel h3::after {
+            content: '⋮⋮';
+            color: #888;
+            font-size: 12px;
+            cursor: move;
+        }
+
+        .panel.dragging {
+            opacity: 0.8;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .panel.resizing {
+            opacity: 0.9;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #888;
+            border-radius: 2px;
+            cursor: nwse-resize;
+            right: 2px;
+            bottom: 2px;
+            z-index: 10;
+        }
+
+        .resize-handle:hover {
+            background: #aaa;
         }
         
         button {
@@ -70,21 +137,217 @@
             border-radius: 3px;
         }
         
-        #chatPanel {
+        #playerListPanel {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 300px;
-            height: 200px;
+            width: 280px;
+            max-height: 400px;
+            right: 10px;
+            top: 10px;
         }
-        
-        #chatMessages {
-            height: 150px;
+
+        .player-tabs {
+            display: flex;
+            border-bottom: 2px solid #555;
+            margin-bottom: 5px;
+        }
+
+        .player-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            cursor: pointer;
+            color: #888;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .player-tab:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .player-tab.active {
+            color: #00ff00;
+            border-bottom: 2px solid #00ff00;
+            margin-bottom: -7px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #playerList {
+            height: 200px;
             overflow-y: auto;
             background: rgba(0, 0, 0, 0.9);
             border: 1px solid #555;
             padding: 5px;
             font-size: 12px;
+        }
+
+        .player-item {
+            padding: 6px 8px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            align-items: center;
+        }
+
+        .player-item:last-child {
+            border-bottom: none;
+        }
+
+        .player-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .player-status.online {
+            background: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+
+        .player-status.offline {
+            background: #ff4444;
+        }
+
+        .player-status.idle {
+            background: #ff9800;
+        }
+
+        .player-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .player-nickname {
+            font-size: 13px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-level {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .player-action {
+            display: flex;
+            gap: 5px;
+            margin-left: 10px;
+        }
+
+        .player-action button {
+            padding: 3px 8px;
+            font-size: 11px;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .player-action button:hover {
+            background: #555;
+        }
+
+        .friend-request {
+            padding: 8px;
+            background: rgba(255, 152, 0, 0.1);
+            border: 1px solid #ff9800;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+
+        .friend-request-header {
+            color: #ff9800;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .friend-request-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .friend-request-actions button {
+            flex: 1;
+            padding: 5px;
+            font-size: 11px;
+        }
+
+        .friend-request-actions button.accept {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .friend-request-actions button.reject {
+            background: #f44336;
+            border-color: #f44336;
+        }
+
+        #chatPanel {
+            position: absolute;
+            width: 280px;
+            right: 10px;
+            top: 420px;
+        }
+        
+        #chatMessages {
+            height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #555;
+            padding: 10px;
+            font-size: 13px;
+        }
+
+        .chat-message {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .chat-message.system {
+            color: #ffcc00;
+            font-style: italic;
+        }
+
+        .chat-message.chat {
+            color: #ffffff;
+        }
+
+        .chat-message.success {
+            color: #4CAF50;
+        }
+
+        .chat-message.error {
+            color: #ff4444;
+        }
+
+        .chat-message.credential {
+            color: #9C27B0;
+            font-weight: bold;
+        }
+
+        .chat-message .nickname {
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        .chat-message .timestamp {
+            color: #888;
+            font-size: 11px;
+            margin-left: 5px;
         }
         
         #chatInput {
@@ -110,32 +373,54 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="ui">
-            <div class="panel">
+            <div class="panel" id="identityPanel" data-panel="identity">
                 <h3>玩家身份</h3>
                 <div>DID: <span id="playerDID">未创建</span></div>
                 <div>状态: <span id="connectionStatus" class="error">未连接</span></div>
                 <button id="createDIDBtn">创建身份</button>
                 <button id="connectBtn">连接游戏</button>
+                <div class="resize-handle"></div>
             </div>
-            
-            <div class="panel">
+
+            <div class="panel" id="walletPanel" data-panel="wallet">
                 <h3>钱包</h3>
                 <div>凭证数量: <span id="credentialCount">0</span></div>
                 <button id="viewWalletBtn">查看钱包</button>
+                <div class="resize-handle"></div>
             </div>
-            
-            <div class="panel">
+
+            <div class="panel" id="controlPanel" data-panel="control">
                 <h3>游戏控制</h3>
                 <div>位置: (<span id="playerX">0</span>, <span id="playerY">0</span>)</div>
                 <div>使用 WASD 键移动</div>
                 <button onclick="window.open('/admin/script-editor', '_blank')">剧本编辑器</button>
+                <div class="resize-handle"></div>
             </div>
         </div>
-        
-        <div id="chatPanel" class="panel">
-            <h3>DIDComm 消息</h3>
+
+        <div class="panel" id="playerListPanel" data-panel="playerList">
+            <h3>在线玩家 (<span id="playerCount">0</span>)</h3>
+            <div class="player-tabs">
+                <div class="player-tab active" data-tab="friends">好友</div>
+                <div class="player-tab" data-tab="lobby">大厅</div>
+            </div>
+            <div id="friendRequestContainer"></div>
+            <div id="playerList">
+                <div class="tab-content active" id="friendsTab">
+                    <div class="no-players">暂无好友</div>
+                </div>
+                <div class="tab-content" id="lobbyTab">
+                    <div class="no-players">暂无在线玩家</div>
+                </div>
+            </div>
+            <div class="resize-handle"></div>
+        </div>
+
+        <div class="panel" id="chatPanel" data-panel="chat">
+            <h3>聊天记录</h3>
             <div id="chatMessages"></div>
             <input type="text" id="chatInput" placeholder="输入消息..." />
+            <div class="resize-handle"></div>
         </div>
     </div>
 
@@ -152,14 +437,18 @@
     <script src="src/network/websocket.js"></script>
     <script src="src/wallet/wallet.js"></script>
     <script src="src/ui/ui.js"></script>
+    <script src="src/panelManager.js"></script>
     <script>
         // 初始化游戏
         document.addEventListener('DOMContentLoaded', function() {
+            // 初始化面板管理器
+            const panelManager = new PanelManager();
+
             const game = new GameEngine('gameCanvas');
             const network = new GameNetwork();
             const wallet = new PlayerWallet();
             const ui = new GameUI(game, network, wallet);
-            
+
             // 启动游戏循环
             game.start();
         });

@@ -1,7 +1,6 @@
 package game
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,9 +9,136 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/google/uuid"
-	
+
 	"github.com/czh0526/game/server/internal/did"
 	"github.com/czh0526/game/server/internal/vc"
+)
+
+// Player 玩家信息
+type Player struct {
+	ID         string          `json:"id"`
+	DID        string          `json:"did"`
+	Nickname   string          `json:"nickname"`
+	Position   Position        `json:"position"`
+	Level      int             `json:"level"`
+	Health     int             `json:"health"`
+	MaxHealth  int             `json:"maxHealth"`
+	Status     string          `json:"status"` // online, offline, playing
+	Connection *websocket.Conn `json:"-"`
+	Room       *GameRoom       `json:"-"`
+	LastSeen   time.Time       `json:"lastSeen"`
+}
+
+// Position 位置信息
+type Position struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// GameRoom 游戏房间
+type GameRoom struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	GameID      string             `json:"gameId"`
+	MaxPlayers  int                `json:"maxPlayers"`
+	Players     map[string]*Player `json:"players"`
+	GameState   *GameState         `json:"gameState"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	mutex       sync.RWMutex
+}
+
+// GameState 游戏状态
+type GameState struct {
+	Status     string                 `json:"status"` // waiting, playing, finished
+	StartTime  *time.Time             `json:"startTime,omitempty"`
+	EndTime    *time.Time             `json:"endTime,omitempty"`
+	Map        *GameMap               `json:"map"`
+	Tasks      []*Task                `json:"tasks"`
+	Events     []*GameEvent           `json:"events"`
+	Properties map[string]interface{} `json:"properties"`
+}
+
+// GameMap 游戏地图
+type GameMap struct {
+	Width       int          `json:"width"`
+	Height      int          `json:"height"`
+	Tiles       [][]int      `json:"tiles"`
+	Objects     []*MapObject `json:"objects"`
+	SpawnPoints []Position   `json:"spawnPoints"`
+}
+
+// MapObject 地图对象
+type MapObject struct {
+	ID         string                 `json:"id"`
+	Type       string                 `json:"type"`
+	Position   Position               `json:"position"`
+	Width      int                    `json:"width"`
+	Height     int                    `json:"height"`
+	Properties map[string]interface{} `json:"properties"`
+}
+
+// Task 游戏任务
+type Task struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Type        string                 `json:"type"`
+	Status      string                 `json:"status"` // available, active, completed, failed
+	Objectives  []*Objective           `json:"objectives"`
+	Rewards     []*Reward              `json:"rewards"`
+	Properties  map[string]interface{} `json:"properties"`
+}
+
+// Objective 任务目标
+type Objective struct {
+	ID          string                 `json:"id"`
+	Description string                 `json:"description"`
+	Type        string                 `json:"type"`
+	Target      string                 `json:"target"`
+	Current     int                    `json:"current"`
+	Required    int                    `json:"required"`
+	Completed   bool                   `json:"completed"`
+	Properties  map[string]interface{} `json:"properties"`
+}
+
+// Reward 奖励
+type Reward struct {
+	Type       string                 `json:"type"`
+	Value      interface{}            `json:"value"`
+	Properties map[string]interface{} `json:"properties"`
+}
+
+// GameEvent 游戏事件
+type GameEvent struct {
+	ID        string                 `json:"id"`
+	Type      string                 `json:"type"`
+	PlayerID  string                 `json:"playerId,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Data      map[string]interface{} `json:"data"`
+}
+
+// Message WebSocket消息
+type Message struct {
+	Type      string      `json:"type"`
+	PlayerID  string      `json:"playerId,omitempty"`
+	RoomID    string      `json:"roomId,omitempty"`
+	Data      interface{} `json:"data"`
+	Timestamp time.Time   `json:"timestamp"`
+}
+
+// 消息类型常量
+const (
+	MsgTypeJoinRoom     = "join_room"
+	MsgTypeLeaveRoom    = "leave_room"
+	MsgTypePlayerMove   = "player_move"
+	MsgTypePlayerAction = "player_action"
+	MsgTypeTaskUpdate   = "task_update"
+	MsgTypeGameState    = "game_state"
+	MsgTypePlayerUpdate = "player_update"
+	MsgTypeChat         = "chat"
+	MsgTypeError        = "error"
+	MsgTypeAuth         = "auth"
+	MsgTypeCredential   = "credential"
 )
 
 // SimpleServer 简化的游戏服务器
