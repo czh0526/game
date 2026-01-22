@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aries Game System</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
     <style>
         body {
             margin: 0;
@@ -18,47 +19,53 @@
             position: relative;
             width: 100vw;
             height: 100vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px;
+            box-sizing: border-box;
         }
-        
+
         #gameCanvas {
             display: block;
             background: #000;
             border: 2px solid #333;
-        }
-        
-        #ui {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 100;
-            display: none; /* 隐藏容器,面板独立定位 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
         }
 
-        #rightPanel {
-            position: absolute;
-            right: 10px;
-            bottom: 10px;
+        #ui {
             display: flex;
             flex-direction: column;
             gap: 10px;
             z-index: 100;
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
         }
 
+        #rightPanels {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+
+        /* 左侧面板 - 垂直排列 */
         #identityPanel {
-            top: 10px;
-            left: 10px;
             width: 250px;
         }
 
         #walletPanel {
-            top: 200px;
-            left: 10px;
             width: 250px;
         }
 
         #controlPanel {
-            top: 390px;
-            left: 10px;
             width: 250px;
         }
         
@@ -68,30 +75,74 @@
             border-radius: 5px;
             padding: 10px;
             min-width: 200px;
-            position: absolute;
+            position: relative;
             user-select: none;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
         }
 
         .panel h3 {
             margin: 0 0 10px 0;
             color: #00ff00;
-            cursor: move;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
         }
 
-        .panel h3::after {
-            content: '⋮⋮';
-            color: #888;
+        .panel h3 .collapse-button {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+
+        .panel h3 .collapse-button:hover {
+            background: rgba(0, 255, 0, 0.2);
+        }
+
+        .panel h3 .collapse-button::before {
+            content: '▼';
             font-size: 12px;
-            cursor: move;
+            color: #00ff00;
+            transition: transform 0.3s ease;
+            display: block;
         }
 
-        .panel.dragging {
-            opacity: 0.8;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+        .panel.collapsed .panel h3 .collapse-button::before {
+            transform: rotate(-90deg);
+        }
+
+        .panel-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel.collapsed .panel-content {
+            max-height: 0;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .panel {
+            transition: all 0.3s ease;
+        }
+
+        .panel.collapsed {
+            min-height: auto;
         }
 
         .panel.resizing {
@@ -108,6 +159,7 @@
             right: 2px;
             bottom: 2px;
             z-index: 10;
+            flex-shrink: 0;
         }
 
         .resize-handle:hover {
@@ -138,11 +190,7 @@
         }
         
         #playerListPanel {
-            position: absolute;
             width: 280px;
-            max-height: 400px;
-            right: 10px;
-            top: 10px;
         }
 
         .player-tabs {
@@ -181,7 +229,8 @@
         }
 
         #playerList {
-            height: 200px;
+            min-height: 0;
+            flex: 1;
             overflow-y: auto;
             background: rgba(0, 0, 0, 0.9);
             border: 1px solid #555;
@@ -296,14 +345,12 @@
         }
 
         #chatPanel {
-            position: absolute;
             width: 280px;
-            right: 10px;
-            top: 420px;
         }
         
         #chatMessages {
-            height: 300px;
+            min-height: 0;
+            flex: 1;
             overflow-y: auto;
             background: rgba(0, 0, 0, 0.9);
             border: 1px solid #555;
@@ -371,56 +418,83 @@
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas"></canvas>
-        
+
         <div id="ui">
             <div class="panel" id="identityPanel" data-panel="identity">
-                <h3>玩家身份</h3>
-                <div>DID: <span id="playerDID">未创建</span></div>
-                <div>状态: <span id="connectionStatus" class="error">未连接</span></div>
-                <button id="createDIDBtn">创建身份</button>
-                <button id="connectBtn">连接游戏</button>
+                <h3>
+                    玩家身份
+                    <button class="collapse-button" data-panel="identity"></button>
+                </h3>
+                <div class="panel-content">
+                    <div>DID: <span id="playerDID">未创建</span></div>
+                    <div>状态: <span id="connectionStatus" class="error">未连接</span></div>
+                    <button id="createDIDBtn">创建身份</button>
+                    <button id="connectBtn">连接游戏</button>
+                </div>
                 <div class="resize-handle"></div>
             </div>
 
             <div class="panel" id="walletPanel" data-panel="wallet">
-                <h3>钱包</h3>
-                <div>凭证数量: <span id="credentialCount">0</span></div>
-                <button id="viewWalletBtn">查看钱包</button>
+                <h3>
+                    钱包
+                    <button class="collapse-button" data-panel="wallet"></button>
+                </h3>
+                <div class="panel-content">
+                    <div>凭证数量: <span id="credentialCount">0</span></div>
+                    <button id="viewWalletBtn">查看钱包</button>
+                </div>
                 <div class="resize-handle"></div>
             </div>
 
             <div class="panel" id="controlPanel" data-panel="control">
-                <h3>游戏控制</h3>
-                <div>位置: (<span id="playerX">0</span>, <span id="playerY">0</span>)</div>
-                <div>使用 WASD 键移动</div>
-                <button onclick="window.open('/admin/script-editor', '_blank')">剧本编辑器</button>
+                <h3>
+                    游戏控制
+                    <button class="collapse-button" data-panel="control"></button>
+                </h3>
+                <div class="panel-content">
+                    <div>位置: (<span id="playerX">0</span>, <span id="playerY">0</span>)</div>
+                    <div>使用 WASD 键移动</div>
+                    <button onclick="window.open('/admin/script-editor', '_blank')">剧本编辑器</button>
+                </div>
                 <div class="resize-handle"></div>
             </div>
         </div>
 
-        <div class="panel" id="playerListPanel" data-panel="playerList">
-            <h3>在线玩家 (<span id="playerCount">0</span>)</h3>
-            <div class="player-tabs">
-                <div class="player-tab active" data-tab="friends">好友</div>
-                <div class="player-tab" data-tab="lobby">大厅</div>
-            </div>
-            <div id="friendRequestContainer"></div>
-            <div id="playerList">
-                <div class="tab-content active" id="friendsTab">
-                    <div class="no-players">暂无好友</div>
+        <div id="rightPanels">
+            <div class="panel" id="playerListPanel" data-panel="playerList">
+                <h3>
+                    在线玩家 (<span id="playerCount">0</span>)
+                    <button class="collapse-button" data-panel="playerList"></button>
+                </h3>
+                <div class="panel-content">
+                    <div class="player-tabs">
+                        <div class="player-tab active" data-tab="friends">好友</div>
+                        <div class="player-tab" data-tab="lobby">大厅</div>
+                    </div>
+                    <div id="friendRequestContainer"></div>
+                    <div id="playerList">
+                        <div class="tab-content active" id="friendsTab">
+                            <div class="no-players">暂无好友</div>
+                        </div>
+                        <div class="tab-content" id="lobbyTab">
+                            <div class="no-players">暂无在线玩家</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="tab-content" id="lobbyTab">
-                    <div class="no-players">暂无在线玩家</div>
-                </div>
+                <div class="resize-handle"></div>
             </div>
-            <div class="resize-handle"></div>
-        </div>
 
-        <div class="panel" id="chatPanel" data-panel="chat">
-            <h3>聊天记录</h3>
-            <div id="chatMessages"></div>
-            <input type="text" id="chatInput" placeholder="输入消息..." />
-            <div class="resize-handle"></div>
+            <div class="panel" id="chatPanel" data-panel="chat">
+                <h3>
+                    聊天记录
+                    <button class="collapse-button" data-panel="chat"></button>
+                </h3>
+                <div class="panel-content">
+                    <div id="chatMessages"></div>
+                    <input type="text" id="chatInput" placeholder="输入消息..." />
+                </div>
+                <div class="resize-handle"></div>
+            </div>
         </div>
     </div>
 
