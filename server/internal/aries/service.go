@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/czh0526/game/server/internal/storage/mysqlstore"
+	"github.com/hyperledger/aries-framework-go/component/storage/mysql"
 )
 
 // AriesService wraps simplified Aries functionality for DID operations
 type AriesService struct {
-	storageProvider *mysqlstore.Provider
+	storageProvider *mysql.Provider
 }
 
 // Config Aries configuration
@@ -51,8 +51,10 @@ type VerificationRelationship struct {
 
 // NewAriesService creates a new Aries service
 func NewAriesService(config *Config) (*AriesService, error) {
-	// Create MySQL storage provider
-	storageProvider, err := mysqlstore.NewProvider(config.MySQLDSN)
+	// Create MySQL storage provider using aries-framework-go-ext
+	// DSN format: user:password@tcp(host:port)/?interpolateParams=true&multiStatements=true
+	dsn := config.MySQLDSN
+	storageProvider, err := mysql.NewProvider(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage provider: %w", err)
 	}
