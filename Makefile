@@ -16,11 +16,11 @@ build:
 
 # 运行开发服务器
 dev:
-	go run ./server/cmd -addr=:8080 -static=./client
+	go run ./server/cmd -addr=:8080 -static=./client -mysql-dsn="root:123456@tcp(localhost:3308)/aries?parseTime=true"
 
 # 运行生产服务器
 run: build
-	./bin/game-server -addr=:8080 -static=./client
+	./bin/game-server -addr=:8080 -static=./client -mysql-dsn="root:123456@tcp(localhost:3308)/aries?parseTime=true"
 
 # 运行测试
 test:

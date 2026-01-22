@@ -12,9 +12,13 @@ class PlayerWallet {
         this.loadFromStorage();
     }
     
-    // DID 管理
+    // DID 管理 - 使用Aries-hyperledger-go创建DID
     async createDID(gameId, nickname = '', level = 1) {
         try {
+            // 生成玩家 ID（UUID）
+            const playerId = cryptoUtils.generateUUID();
+
+            // 调用服务器API使用Aries框架创建DID
             const response = await fetch('/api/did/create', {
                 method: 'POST',
                 headers: {
@@ -22,33 +26,48 @@ class PlayerWallet {
                 },
                 body: JSON.stringify({
                     gameId: gameId,
+                    playerId: playerId,
                     nickname: nickname,
                     level: level
                 })
             });
-            
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
             }
-            
+
             const data = await response.json();
-            
-            // 保存DID信息
+
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to create DID');
+            }
+
+            // 保存从服务器返回的DID信息
             this.did = data.did;
             this.privateKey = data.privateKey;
             this.publicKey = data.publicKey;
-            
-            // 保存到本地存储
+            this.gameId = gameId;
+            this.playerId = playerId;
+            this.nickname = nickname;
+            this.level = level;
+
+            // 保存到本地存储（加密存储私钥）
             this.saveToStorage();
-            
+
             // 更新UI
             this.updateDIDDisplay();
-            
-            console.log('DID created successfully:', this.did);
-            return data;
-            
+
+            console.log('DID created successfully with Aries framework:', this.did);
+            return {
+                did: this.did,
+                publicKey: this.publicKey,
+                privateKey: this.privateKey,
+                created: data.success
+            };
+
         } catch (error) {
-            console.error('Failed to create DID:', error);
+            console.error('Failed to create DID with Aries:', error);
             throw error;
         }
     }
@@ -140,76 +159,140 @@ class PlayerWallet {
         }
     }
     
-    // 数字签名
+    // 数字签名 - 使用客户端加密工具
     async signMessage(message) {
         if (!this.privateKey) {
             throw new Error('No private key available');
         }
-        
-        // 这里应该使用实际的加密库进行签名
-        // 为了演示，我们使用简单的哈希
-        const encoder = new TextEncoder();
-        const data = encoder.encode(message + this.privateKey);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        return {
-            message: message,
-            signature: hashHex,
-            publicKey: this.publicKey,
-            did: this.did
-        };
+
+        try {
+            const result = await cryptoUtils.signMessage(message, this.privateKey);
+            return {
+                message: result.message,
+                signature: result.signature,
+                publicKey: this.publicKey,
+                did: this.did,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error('Failed to sign message:', error);
+            throw error;
+        }
     }
     
     async verifySignature(signedMessage) {
-        // 验证签名的逻辑
-        const encoder = new TextEncoder();
-        const data = encoder.encode(signedMessage.message + this.privateKey);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        return expectedHash === signedMessage.signature;
+        // 使用加密工具验证签名
+        try {
+            return await cryptoUtils.verifySignature(
+                signedMessage.message,
+                signedMessage.signature,
+                signedMessage.publicKey
+            );
+        } catch (error) {
+            console.error('Failed to verify signature:', error);
+            return false;
+        }
     }
     
-    // 本地存储管理
-    saveToStorage() {
+    // 本地存储管理（支持加密存储）
+    async saveToStorage(password = null) {
+        let encryptedPrivateKey = null;
+        let salt = null;
+        let iv = null;
+
+        // 如果提供了密码，则加密私钥
+        if (password && this.privateKey) {
+            try {
+                const encrypted = await cryptoUtils.encryptData(
+                    this.privateKey,
+                    password
+                );
+                encryptedPrivateKey = encrypted.encrypted;
+                salt = encrypted.salt;
+                iv = encrypted.iv;
+            } catch (error) {
+                console.error('Failed to encrypt private key:', error);
+                throw error;
+            }
+        }
+
         const walletData = {
             did: this.did,
-            privateKey: this.privateKey,
+            privateKey: encryptedPrivateKey || this.privateKey, // 加密或明文
+            salt: salt,
+            iv: iv,
+            isEncrypted: !!password,
             publicKey: this.publicKey,
+            didDocument: this.didDocument,
+            gameId: this.gameId,
+            playerId: this.playerId,
+            nickname: this.nickname,
+            level: this.level,
             credentials: Array.from(this.credentials.entries())
         };
-        
+
         try {
             localStorage.setItem('aries_game_wallet', JSON.stringify(walletData));
         } catch (error) {
             console.error('Failed to save wallet to storage:', error);
+            throw error;
         }
     }
     
-    loadFromStorage() {
+    async loadFromStorage(password = null) {
         try {
             const stored = localStorage.getItem('aries_game_wallet');
-            if (stored) {
-                const walletData = JSON.parse(stored);
-                
-                this.did = walletData.did;
-                this.privateKey = walletData.privateKey;
-                this.publicKey = walletData.publicKey;
-                
-                if (walletData.credentials) {
-                    this.credentials = new Map(walletData.credentials);
-                }
-                
-                // 更新UI
-                this.updateDIDDisplay();
-                
-                console.log('Wallet loaded from storage');
+            if (!stored) {
+                return false;
             }
+
+            const walletData = JSON.parse(stored);
+
+            this.did = walletData.did;
+            this.publicKey = walletData.publicKey;
+            this.didDocument = walletData.didDocument;
+            this.gameId = walletData.gameId;
+            this.playerId = walletData.playerId;
+            this.nickname = walletData.nickname;
+            this.level = walletData.level;
+
+            // 处理私钥（加密或明文）
+            if (walletData.isEncrypted) {
+                if (!password) {
+                    console.warn('Wallet is encrypted but no password provided');
+                    this.privateKey = null;
+                    return false; // 需要密码才能加载
+                }
+
+                try {
+                    this.privateKey = await cryptoUtils.decryptData(
+                        walletData.privateKey,
+                        password,
+                        walletData.salt,
+                        walletData.iv
+                    );
+                } catch (error) {
+                    console.error('Failed to decrypt private key:', error);
+                    this.privateKey = null;
+                    return false; // 密码错误
+                }
+            } else {
+                this.privateKey = walletData.privateKey;
+            }
+
+            if (walletData.credentials) {
+                this.credentials = new Map(walletData.credentials);
+            }
+
+            // 更新UI
+            this.updateDIDDisplay();
+
+            console.log('Wallet loaded from storage');
+            return true;
+
         } catch (error) {
             console.error('Failed to load wallet from storage:', error);
+            return false;
         }
     }
     

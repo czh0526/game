@@ -46,16 +46,13 @@ type VerifyCredentialResponse struct {
 
 // NewSimpleService 创建新的简化VC服务
 func NewSimpleService(didService *did.SimpleService) (*SimpleService, error) {
-	// 创建颁发者DID
-	issuerResponse, err := didService.CreatePlayerDID("system", "game-server", "Game Server", 999)
-	if err != nil {
-		return nil, fmt.Errorf("create issuer DID: %w", err)
-	}
+	// 使用固定的系统颁发者 DID
+	issuerDID := "did:player:system:game-server"
 
 	return &SimpleService{
 		didService:  didService,
 		credentials: make(map[string]*vc.SimpleCredential),
-		issuerDID:   issuerResponse.DID,
+		issuerDID:   issuerDID,
 	}, nil
 }
 

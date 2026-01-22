@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -126,4 +127,33 @@ func FromJSON(data []byte) (*SimpleDID, error) {
 	var did SimpleDID
 	err := json.Unmarshal(data, &did)
 	return &did, err
+}
+
+// IsValidPlayerDID 验证 DID 格式是否有效
+func IsValidPlayerDID(didString string) bool {
+	// 格式: did:player:{gameId}:{playerId}
+	parts := strings.Split(didString, ":")
+	if len(parts) != 4 {
+		return false
+	}
+
+	if parts[0] != "did" {
+		return false
+	}
+
+	if parts[1] != "player" {
+		return false
+	}
+
+	// gameId 不能为空
+	if parts[2] == "" {
+		return false
+	}
+
+	// playerId 不能为空
+	if parts[3] == "" {
+		return false
+	}
+
+	return true
 }

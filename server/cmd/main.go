@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/czh0526/game/server/internal/aries"
 	"github.com/czh0526/game/server/internal/game"
 	"github.com/czh0526/game/server/internal/did"
 	"github.com/czh0526/game/server/internal/vc"
@@ -19,11 +20,24 @@ func main() {
 	var (
 		addr = flag.String("addr", ":8080", "HTTP server address")
 		staticDir = flag.String("static", "./client", "Static files directory")
+		mysqlDSN = flag.String("mysql-dsn", "root:password@tcp(localhost:3308)/aries_did?parseTime=true", "MySQL data source name")
 	)
 	flag.Parse()
 
-	// 初始化DID服务
-	didService := did.NewSimpleService()
+	// 初始化Aries服务
+	log.Println("Initializing Aries service with MySQL storage...")
+	ariesSvc, err := aries.NewAriesService(&aries.Config{
+		MySQLDSN: *mysqlDSN,
+		Label:    "game-did-service",
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize Aries service: %v", err)
+	}
+	defer ariesSvc.Close()
+	log.Println("Aries service initialized successfully")
+
+	// 初始化DID服务（使用Aries）
+	didService := did.NewSimpleServiceWithAries(ariesSvc)
 
 	// 初始化VC服务
 	vcService, err := vc.NewSimpleService(didService)
@@ -39,16 +53,19 @@ func main() {
 
 	// 设置HTTP路由
 	mux := http.NewServeMux()
-	
+
 	// 静态文件服务
 	mux.Handle("/", http.FileServer(http.Dir(*staticDir)))
-	
-	// API路由
-	mux.HandleFunc("/api/did/create", didService.HandleCreateDID)
+
+	// API路由 - DID管理
+	mux.HandleFunc("/api/did/create", didService.HandleCreateDIDWithAries)
+	mux.HandleFunc("/api/did/register", didService.HandleRegisterDID)
 	mux.HandleFunc("/api/did/resolve", didService.HandleResolveDID)
+
+	// API路由 - VC管理
 	mux.HandleFunc("/api/vc/issue", vcService.HandleIssueCredential)
 	mux.HandleFunc("/api/vc/verify", vcService.HandleVerifyCredential)
-	
+
 	// WebSocket游戏连接
 	mux.HandleFunc("/ws/game", gameServer.HandleWebSocket)
 
